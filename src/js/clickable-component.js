@@ -1,46 +1,58 @@
 /**
- * @file button.js
+ * @file clickable-component.js
  */
 import Component from './component';
 import * as Dom from './utils/dom.js';
-import * as Events from './utils/events.js';
-import * as Fn from './utils/fn.js';
 import log from './utils/log.js';
-import document from 'global/document';
-import assign from 'object.assign';
+import {assign} from './utils/obj';
+import keycode from 'keycode';
 
 /**
- * Clickable Component which is clickable or keyboard actionable, but is not a native HTML button
+ * Component which is clickable or keyboard actionable, but is not a
+ * native HTML button.
  *
- * @param {Object} player  Main Player
- * @param {Object=} options Object of option names and values
  * @extends Component
- * @class ClickableComponent
  */
 class ClickableComponent extends Component {
 
+  /**
+   * Creates an instance of this class.
+   *
+   * @param  {Player} player
+   *         The `Player` that this class should be attached to.
+   *
+   * @param  {Object} [options]
+   *         The key/value store of player options.
+   *
+   * @param  {function} [options.clickHandler]
+   *         The function to call when the button is clicked / activated
+   */
   constructor(player, options) {
     super(player, options);
 
     this.emitTapEvents();
 
-    this.on('tap', this.handleClick);
-    this.on('click', this.handleClick);
-    this.on('focus', this.handleFocus);
-    this.on('blur', this.handleBlur);
+    this.enable();
   }
 
   /**
-   * Create the component's DOM element
+   * Create the `ClickableComponent`s DOM element.
    *
-   * @param {String=} type Element's node type. e.g. 'div'
-   * @param {Object=} props An object of properties that should be set on the element
-   * @param {Object=} attributes An object of attributes that should be set on the element
+   * @param {string} [tag=div]
+   *        The element's node type.
+   *
+   * @param {Object} [props={}]
+   *        An object of properties that should be set on the element.
+   *
+   * @param {Object} [attributes={}]
+   *        An object of attributes that should be set on the element.
+   *
    * @return {Element}
-   * @method createEl
+   *         The element that gets created.
    */
-  createEl(tag='div', props={}, attributes={}) {
+  createEl(tag = 'div', props = {}, attributes = {}) {
     props = assign({
+      innerHTML: '<span aria-hidden="true" class="vjs-icon-placeholder"></span>',
       className: this.buildCSSClass(),
       tabIndex: 0
     }, props);
@@ -51,27 +63,40 @@ class ClickableComponent extends Component {
 
     // Add ARIA attributes for clickable element which is not a native HTML button
     attributes = assign({
-      role: 'button',
-      'aria-live': 'polite' // let the screen reader user know that the text of the element may change
+      role: 'button'
     }, attributes);
 
-    let el = super.createEl(tag, props, attributes);
+    this.tabIndex_ = props.tabIndex;
+
+    const el = super.createEl(tag, props, attributes);
 
     this.createControlTextEl(el);
 
     return el;
   }
 
+  dispose() {
+    // remove controlTextEl_ on dispose
+    this.controlTextEl_ = null;
+
+    super.dispose();
+  }
+
   /**
-   * create control text
+   * Create a control text element on this `ClickableComponent`
    *
-   * @param {Element} el Parent element for the control text
+   * @param {Element} [el]
+   *        Parent element for the control text.
+   *
    * @return {Element}
-   * @method controlText
+   *         The control text element that gets created.
    */
   createControlTextEl(el) {
     this.controlTextEl_ = Dom.createEl('span', {
       className: 'vjs-control-text'
+    }, {
+      // let the screen reader user know that the text of the element may change
+      'aria-live': 'polite'
     });
 
     if (el) {
@@ -84,117 +109,116 @@ class ClickableComponent extends Component {
   }
 
   /**
-   * Controls text - both request and localize
+   * Get or set the localize text to use for the controls on the `ClickableComponent`.
    *
-   * @param {String}  text Text for element
-   * @param {Element=} el Element to set the title on
-   * @return {String}
-   * @method controlText
+   * @param {string} [text]
+   *        Control text for element.
+   *
+   * @param {Element} [el=this.el()]
+   *        Element to set the title on.
+   *
+   * @return {string}
+   *         - The control text when getting
    */
-  controlText(text, el=this.el()) {
-    if (!text) return this.controlText_ || 'Need Text';
-    
+  controlText(text, el = this.el()) {
+    if (text === undefined) {
+      return this.controlText_ || 'Need Text';
+    }
+
     const localizedText = this.localize(text);
 
     this.controlText_ = text;
-    this.controlTextEl_.innerHTML = localizedText;
-    el.setAttribute('title', localizedText);
-
-    return this;
+    Dom.textContent(this.controlTextEl_, localizedText);
+    if (!this.nonIconControl) {
+      // Set title attribute if only an icon is shown
+      el.setAttribute('title', localizedText);
+    }
   }
 
   /**
-   * Allows sub components to stack CSS class names
+   * Builds the default DOM `className`.
    *
-   * @return {String}
-   * @method buildCSSClass
+   * @return {string}
+   *         The DOM `className` for this object.
    */
   buildCSSClass() {
     return `vjs-control vjs-button ${super.buildCSSClass()}`;
   }
 
   /**
-   * Adds a child component inside this clickable-component
-   *
-   * @param {String|Component} child The class name or instance of a child to add
-   * @param {Object=} options Options, including options to be passed to children of the child.
-   * @return {Component} The child component (created by this process if a string was used)
-   * @method addChild
-   */
-  addChild(child, options={}) {
-    // TODO: Fix adding an actionable child to a ClickableComponent; currently
-    // it will cause issues with assistive technology (e.g. screen readers)
-    // which support ARIA, since an element with role="button" cannot have
-    // actionable child elements.
-
-    //let className = this.constructor.name;
-    //log.warn(`Adding a child to a ClickableComponent (${className}) can cause issues with assistive technology which supports ARIA, since an element with role="button" cannot have actionable child elements.`);
-
-    return super.addChild(child, options);
-  }
-
-  /**
-   * Enable the component element
-   *
-   * @return {Component}
-   * @method enable
+   * Enable this `ClickableComponent`
    */
   enable() {
-    this.removeClass('vjs-disabled');
-    this.el_.setAttribute('aria-disabled', 'false');
-    return this;
-  }
-
-  /**
-   * Disable the component element
-   *
-   * @return {Component}
-   * @method disable
-   */
-  disable() {
-    this.addClass('vjs-disabled');
-    this.el_.setAttribute('aria-disabled', 'true');
-    return this;
-  }
-
-  /**
-   * Handle Click - Override with specific functionality for component
-   *
-   * @method handleClick
-   */
-  handleClick() {}
-
-  /**
-   * Handle Focus - Add keyboard functionality to element
-   *
-   * @method handleFocus
-   */
-  handleFocus() {
-    Events.on(document, 'keydown', Fn.bind(this, this.handleKeyPress));
-  }
-
-  /**
-   * Handle KeyPress (document level) - Trigger click when Space or Enter key is pressed
-   *
-   * @method handleKeyPress
-   */
-  handleKeyPress(event) {
-    // Support Space (32) or Enter (13) key operation to fire a click event
-    if (event.which === 32 || event.which === 13) {
-      event.preventDefault();
-      this.handleClick(event);
-    } else if (super.handleKeyPress) {
-      super.handleKeyPress(event); // Pass keypress handling up for unsupported keys
+    if (!this.enabled_) {
+      this.enabled_ = true;
+      this.removeClass('vjs-disabled');
+      this.el_.setAttribute('aria-disabled', 'false');
+      if (typeof this.tabIndex_ !== 'undefined') {
+        this.el_.setAttribute('tabIndex', this.tabIndex_);
+      }
+      this.on(['tap', 'click'], this.handleClick);
+      this.on('keydown', this.handleKeyDown);
     }
   }
 
   /**
-   * Handle Blur - Remove keyboard triggers
-   *
-   * @method handleBlur
+   * Disable this `ClickableComponent`
    */
-  handleBlur() {
-    Events.off(document, 'keydown', Fn.bind(this, this.handleKeyPress));
+  disable() {
+    this.enabled_ = false;
+    this.addClass('vjs-disabled');
+    this.el_.setAttribute('aria-disabled', 'true');
+    if (typeof this.tabIndex_ !== 'undefined') {
+      this.el_.removeAttribute('tabIndex');
+    }
+    this.off('mouseover', this.handleMouseOver);
+    this.off('mouseout', this.handleMouseOut);
+    this.off(['tap', 'click'], this.handleClick);
+    this.off('keydown', this.handleKeyDown);
+  }
+
+  /**
+   * Event handler that is called when a `ClickableComponent` receives a
+   * `click` or `tap` event.
+   *
+   * @param {EventTarget~Event} event
+   *        The `tap` or `click` event that caused this function to be called.
+   *
+   * @listens tap
+   * @listens click
+   * @abstract
+   */
+  handleClick(event) {
+    if (this.options_.clickHandler) {
+      this.options_.clickHandler.call(this, arguments);
+    }
+  }
+
+  /**
+   * Event handler that is called when a `ClickableComponent` receives a
+   * `keydown` event.
+   *
+   * By default, if the key is Space or Enter, it will trigger a `click` event.
+   *
+   * @param {EventTarget~Event} event
+   *        The `keydown` event that caused this function to be called.
+   *
+   * @listens keydown
+   */
+  handleKeyDown(event) {
+
+    // Support Space or Enter key operation to fire a click event. Also,
+    // prevent the event from propagating through the DOM and triggering
+    // Player hotkeys.
+    if (keycode.isEventKey(event, 'Space') || keycode.isEventKey(event, 'Enter')) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.trigger('click');
+    } else {
+
+      // Pass keypress handling up for unsupported keys
+      super.handleKeyDown(event);
+    }
   }
 }
 

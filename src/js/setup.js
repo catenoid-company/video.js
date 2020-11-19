@@ -1,59 +1,49 @@
 /**
- * @file setup.js
+ * @file setup.js - Functions for setting up a player without
+ * user interaction based on the data-setup `attribute` of the video tag.
  *
- * Functions for automatically setting up a player
- * based on the data-setup attribute of the video tag
+ * @module setup
  */
-import * as Events from './utils/events.js';
+import * as Dom from './utils/dom';
 import document from 'global/document';
 import window from 'global/window';
 
 let _windowLoaded = false;
 let videojs;
 
+/**
+ * Set up any tags that have a data-setup `attribute` when the player is started.
+ */
+const autoSetup = function() {
 
-// Automatically set up any tags that have a data-setup attribute
-var autoSetup = function(){
-  // One day, when we stop supporting IE8, go back to this, but in the meantime...*hack hack hack*
-  // var vids = Array.prototype.slice.call(document.getElementsByTagName('video'));
-  // var audios = Array.prototype.slice.call(document.getElementsByTagName('audio'));
-  // var mediaEls = vids.concat(audios);
+  // Protect against breakage in non-browser environments and check global autoSetup option.
+  if (!Dom.isReal() || videojs.options.autoSetup === false) {
+    return;
+  }
 
-  // Because IE8 doesn't support calling slice on a node list, we need to loop through each list of elements
-  // to build up a new, combined list of elements.
-  var vids = document.getElementsByTagName('video');
-  var audios = document.getElementsByTagName('audio');
-  var mediaEls = [];
-  if (vids && vids.length > 0) {
-    for(let i=0, e=vids.length; i<e; i++) {
-      mediaEls.push(vids[i]);
-    }
-  }
-  if (audios && audios.length > 0) {
-    for(let i=0, e=audios.length; i<e; i++) {
-      mediaEls.push(audios[i]);
-    }
-  }
+  const vids = Array.prototype.slice.call(document.getElementsByTagName('video'));
+  const audios = Array.prototype.slice.call(document.getElementsByTagName('audio'));
+  const divs = Array.prototype.slice.call(document.getElementsByTagName('video-js'));
+  const mediaEls = vids.concat(audios, divs);
 
   // Check if any media elements exist
   if (mediaEls && mediaEls.length > 0) {
 
-    for (let i=0, e=mediaEls.length; i<e; i++) {
-      let mediaEl = mediaEls[i];
+    for (let i = 0, e = mediaEls.length; i < e; i++) {
+      const mediaEl = mediaEls[i];
 
       // Check if element exists, has getAttribute func.
-      // IE seems to consider typeof el.getAttribute == 'object' instead of 'function' like expected, at least when loading the player immediately.
       if (mediaEl && mediaEl.getAttribute) {
 
         // Make sure this player hasn't already been set up.
-        if (mediaEl['player'] === undefined) {
-          let options = mediaEl.getAttribute('data-setup');
+        if (mediaEl.player === undefined) {
+          const options = mediaEl.getAttribute('data-setup');
 
           // Check if data-setup attr exists.
           // We only auto-setup if they've added the data-setup attr.
           if (options !== null) {
             // Create new video.js instance.
-            let player = videojs(mediaEl);
+            videojs(mediaEl);
           }
         }
 
@@ -70,25 +60,55 @@ var autoSetup = function(){
   }
 };
 
-// Pause to let the DOM keep processing
-var autoSetupTimeout = function(wait, vjs){
+/**
+ * Wait until the page is loaded before running autoSetup. This will be called in
+ * autoSetup if `hasLoaded` returns false.
+ *
+ * @param {number} wait
+ *        How long to wait in ms
+ *
+ * @param {module:videojs} [vjs]
+ *        The videojs library function
+ */
+function autoSetupTimeout(wait, vjs) {
   if (vjs) {
     videojs = vjs;
   }
 
-  setTimeout(autoSetup, wait);
-};
-
-if (document.readyState === 'complete') {
-  _windowLoaded = true;
-} else {
-  Events.one(window, 'load', function(){
-    _windowLoaded = true;
-  });
+  window.setTimeout(autoSetup, wait);
 }
 
-var hasLoaded = function() {
+/**
+ * Used to set the internal tracking of window loaded state to true.
+ *
+ * @private
+ */
+function setWindowLoaded() {
+  _windowLoaded = true;
+  window.removeEventListener('load', setWindowLoaded);
+}
+
+if (Dom.isReal()) {
+  if (document.readyState === 'complete') {
+    setWindowLoaded();
+  } else {
+    /**
+     * Listen for the load event on window, and set _windowLoaded to true.
+     *
+     * We use a standard event listener here to avoid incrementing the GUID
+     * before any players are created.
+     *
+     * @listens load
+     */
+    window.addEventListener('load', setWindowLoaded);
+  }
+}
+
+/**
+ * check if the window has been loaded
+ */
+const hasLoaded = function() {
   return _windowLoaded;
 };
 
-export { autoSetup, autoSetupTimeout, hasLoaded };
+export {autoSetup, autoSetupTimeout, hasLoaded};

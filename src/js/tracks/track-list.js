@@ -2,58 +2,54 @@
  * @file track-list.js
  */
 import EventTarget from '../event-target';
-import * as Fn from '../utils/fn.js';
-import * as browser from '../utils/browser.js';
-import document from 'global/document';
 
 /**
- * Common functionaliy between Text, Audio, and Video TrackLists
- * Interfaces defined in the following spec:
- * @link https://html.spec.whatwg.org/multipage/embedded-content.html
+ * Common functionaliy between {@link TextTrackList}, {@link AudioTrackList}, and
+ * {@link VideoTrackList}
  *
- * @param {Track[]} tracks A list of tracks to initialize the list with
- * @param {Object} list the child object with inheritance done manually for ie8
  * @extends EventTarget
- * @class TrackList
  */
 class TrackList extends EventTarget {
-  constructor(tracks = [], list = null) {
+  /**
+   * Create an instance of this class
+   *
+   * @param {Track[]} tracks
+   *        A list of tracks to initialize the list with.
+   *
+   * @abstract
+   */
+  constructor(tracks = []) {
     super();
-    if (!list) {
-      list = this;
-      if (browser.IS_IE8) {
-        list = document.createElement('custom');
-        for (let prop in TrackList.prototype) {
-          if (prop !== 'constructor') {
-            list[prop] = TrackList.prototype[prop];
-          }
-        }
-      }
-    }
 
-    list.tracks_ = [];
-    Object.defineProperty(list, 'length', {
+    this.tracks_ = [];
+
+    /**
+     * @memberof TrackList
+     * @member {number} length
+     *         The current number of `Track`s in the this Trackist.
+     * @instance
+     */
+    Object.defineProperty(this, 'length', {
       get() {
         return this.tracks_.length;
       }
     });
 
     for (let i = 0; i < tracks.length; i++) {
-      list.addTrack_(tracks[i]);
+      this.addTrack(tracks[i]);
     }
-
-    return list;
   }
 
   /**
-   * Add a Track from TrackList
+   * Add a {@link Track} to the `TrackList`
    *
-   * @param {Mixed} track
-   * @method addTrack_
-   * @private
+   * @param {Track} track
+   *        The audio, video, or text track to add to the list.
+   *
+   * @fires TrackList#addtrack
    */
-  addTrack_(track) {
-    let index = this.tracks_.length;
+  addTrack(track) {
+    const index = this.tracks_.length;
 
     if (!('' + index in this)) {
       Object.defineProperty(this, index, {
@@ -66,21 +62,31 @@ class TrackList extends EventTarget {
     // Do not add duplicate tracks
     if (this.tracks_.indexOf(track) === -1) {
       this.tracks_.push(track);
+      /**
+       * Triggered when a track is added to a track list.
+       *
+       * @event TrackList#addtrack
+       * @type {EventTarget~Event}
+       * @property {Track} track
+       *           A reference to track that was added.
+       */
       this.trigger({
         track,
-        type: 'addtrack'
+        type: 'addtrack',
+        target: this
       });
     }
   }
 
   /**
-   * Remove a Track from TrackList
+   * Remove a {@link Track} from the `TrackList`
    *
-   * @param {Track} rtrack track to be removed
-   * @method removeTrack_
-   * @private
+   * @param {Track} rtrack
+   *        The audio, video, or text track to remove from the list.
+   *
+   * @fires TrackList#removetrack
    */
-  removeTrack_(rtrack) {
+  removeTrack(rtrack) {
     let track;
 
     for (let i = 0, l = this.length; i < l; i++) {
@@ -100,16 +106,25 @@ class TrackList extends EventTarget {
       return;
     }
 
+    /**
+     * Triggered when a track is removed from track list.
+     *
+     * @event TrackList#removetrack
+     * @type {EventTarget~Event}
+     * @property {Track} track
+     *           A reference to track that was removed.
+     */
     this.trigger({
       track,
-      type: 'removetrack'
+      type: 'removetrack',
+      target: this
     });
   }
 
   /**
    * Get a Track from the TrackList by a tracks id
    *
-   * @param {String} id - the id of the track to get
+   * @param {string} id - the id of the track to get
    * @method getTrackById
    * @return {Track}
    * @private
@@ -118,7 +133,8 @@ class TrackList extends EventTarget {
     let result = null;
 
     for (let i = 0, l = this.length; i < l; i++) {
-      let track = this[i];
+      const track = this[i];
+
       if (track.id === id) {
         result = track;
         break;
@@ -130,9 +146,17 @@ class TrackList extends EventTarget {
 }
 
 /**
- * change - One or more tracks in the track list have been enabled or disabled.
- * addtrack - A track has been added to the track list.
- * removetrack - A track has been removed from the track list.
+ * Triggered when a different track is selected/enabled.
+ *
+ * @event TrackList#change
+ * @type {EventTarget~Event}
+ */
+
+/**
+ * Events that can be called with on + eventName. See {@link EventHandler}.
+ *
+ * @property {Object} TrackList#allowedEvents_
+ * @private
  */
 TrackList.prototype.allowedEvents_ = {
   change: 'change',
@@ -141,7 +165,7 @@ TrackList.prototype.allowedEvents_ = {
 };
 
 // emulate attribute EventHandler support to allow for feature detection
-for (let event in TrackList.prototype.allowedEvents_) {
+for (const event in TrackList.prototype.allowedEvents_) {
   TrackList.prototype['on' + event] = null;
 }
 

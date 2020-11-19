@@ -1,5 +1,5 @@
-import * as browser from '../../../src/js/utils/browser.js';
-import document from 'global/document';
+/* eslint-env qunit */
+import TechFaker from '../tech/tech-faker';
 
 /**
  * Tests baseline functionality for all tracks
@@ -9,34 +9,42 @@ import document from 'global/document';
  */
 const TrackBaseline = function(TrackClass, options) {
 
-  test('is setup with id, kind, label, and language', function() {
-    let track = new TrackClass(options);
-    equal(track.kind, options.kind, 'we have a kind');
-    equal(track.label, options.label, 'we have a label');
-    equal(track.language, options.language, 'we have a language');
-    equal(track.id, options.id, 'we have a id');
+  QUnit.test('is setup with id, kind, label, and language', function(assert) {
+    const tech = new TechFaker();
+    const track = new TrackClass(Object.assign({tech}, options));
+
+    assert.equal(track.kind, options.kind, 'we have a kind');
+    assert.equal(track.label, options.label, 'we have a label');
+    assert.equal(track.language, options.language, 'we have a language');
+    assert.equal(track.id, options.id, 'we have a id');
+
+    tech.dispose();
   });
 
-  test('kind, label, language, id, are read only', function() {
-    let track = new TrackClass(options);
+  QUnit.test('kind, label, language, id, are read only', function(assert) {
+    const tech = new TechFaker();
+    const track = new TrackClass(Object.assign({tech}, options));
+
     track.kind = 'subtitles';
     track.label = 'Spanish';
     track.language = 'es';
     track.id = '2';
 
-    equal(track.kind, options.kind, 'we have a kind');
-    equal(track.label, options.label, 'we have a label');
-    equal(track.language, options.language, 'we have a language');
-    equal(track.id, options.id, 'we have an id');
+    assert.equal(track.kind, options.kind, 'we have a kind');
+    assert.equal(track.label, options.label, 'we have a label');
+    assert.equal(track.language, options.language, 'we have a language');
+    assert.equal(track.id, options.id, 'we have an id');
+
+    tech.dispose();
   });
 
-  test('returns an instance of itself on non ie8 browsers', function() {
-    let track = new TrackClass(options);
-    if (browser.IS_IE8) {
-      ok(track, 'returns an object on ie8');
-      return;
-    }
-    ok(track instanceof TrackClass, 'returns an instance');
+  QUnit.test('returns an instance of itself on non ie8 browsers', function(assert) {
+    const tech = new TechFaker();
+    const track = new TrackClass(Object.assign({tech}, options));
+
+    assert.ok(track instanceof TrackClass, 'returns an instance');
+
+    tech.dispose();
   });
 };
 

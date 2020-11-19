@@ -1,60 +1,39 @@
-import log from './utils/log';
-
-/*
+/**
  * @file extend.js
- *
- * A combination of node inherits and babel's inherits (after transpile).
- * Both work the same but node adds `super_` to the subClass
- * and Bable adds the superClass as __proto__. Both seem useful.
+ * @module extend
  */
-const _inherits = function (subClass, superClass) {
-  if (typeof superClass !== 'function' && superClass !== null) {
-    throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass);
-  }
 
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
+import _inherits from '@babel/runtime/helpers/inherits';
 
-  if (superClass) {
-    // node
-    subClass.super_ = superClass;
-  }
-};
-
-/*
- * Function for subclassing using the same inheritance that
- * videojs uses internally
- * ```js
- * var Button = videojs.getComponent('Button');
- * ```
- * ```js
- * var MyButton = videojs.extend(Button, {
- *   constructor: function(player, options) {
- *     Button.call(this, player, options);
- *   },
- *   onClick: function() {
- *     // doSomething
+/**
+ * Used to subclass an existing class by emulating ES subclassing using the
+ * `extends` keyword.
+ *
+ * @function
+ * @example
+ * var MyComponent = videojs.extend(videojs.getComponent('Component'), {
+ *   myCustomMethod: function() {
+ *     // Do things in my method.
  *   }
  * });
- * ```
+ *
+ * @param    {Function} superClass
+ *           The class to inherit from
+ *
+ * @param    {Object}   [subClassMethods={}]
+ *           Methods of the new class
+ *
+ * @return   {Function}
+ *           The new class with subClassMethods that inherited superClass.
  */
-const extendFn = function(superClass, subClassMethods={}) {
+const extend = function(superClass, subClassMethods = {}) {
   let subClass = function() {
     superClass.apply(this, arguments);
   };
+
   let methods = {};
 
   if (typeof subClassMethods === 'object') {
-    if (typeof subClassMethods.init === 'function') {
-      log.warn('Constructor logic via init() is deprecated; please use constructor() instead.');
-      subClassMethods.constructor = subClassMethods.init;
-    }
     if (subClassMethods.constructor !== Object.prototype.constructor) {
       subClass = subClassMethods.constructor;
     }
@@ -65,8 +44,13 @@ const extendFn = function(superClass, subClassMethods={}) {
 
   _inherits(subClass, superClass);
 
+  // this is needed for backward-compatibility and node compatibility.
+  if (superClass) {
+    subClass.super_ = superClass;
+  }
+
   // Extend subObj's prototype with functions and other properties from props
-  for (var name in methods) {
+  for (const name in methods) {
     if (methods.hasOwnProperty(name)) {
       subClass.prototype[name] = methods[name];
     }
@@ -75,4 +59,4 @@ const extendFn = function(superClass, subClassMethods={}) {
   return subClass;
 };
 
-export default extendFn;
+export default extend;

@@ -1,26 +1,31 @@
 /**
  * @file fullscreen-api.js
+ * @module fullscreen-api
+ * @private
  */
 import document from 'global/document';
 
-/*
- * Store the browser-specific methods for the fullscreen API
- * @type {Object|undefined}
- * @private
+/**
+ * Store the browser-specific methods for the fullscreen API.
+ *
+ * @type {Object}
+ * @see [Specification]{@link https://fullscreen.spec.whatwg.org}
+ * @see [Map Approach From Screenfull.js]{@link https://github.com/sindresorhus/screenfull.js}
  */
-let FullscreenApi = {};
+const FullscreenApi = {
+  prefixed: true
+};
 
 // browser API methods
-// map approach from Screenful.js - https://github.com/sindresorhus/screenfull.js
 const apiMap = [
-  // Spec: https://dvcs.w3.org/hg/fullscreen/raw-file/tip/Overview.html
   [
     'requestFullscreen',
     'exitFullscreen',
     'fullscreenElement',
     'fullscreenEnabled',
     'fullscreenchange',
-    'fullscreenerror'
+    'fullscreenerror',
+    'fullscreen'
   ],
   // WebKit
   [
@@ -29,16 +34,8 @@ const apiMap = [
     'webkitFullscreenElement',
     'webkitFullscreenEnabled',
     'webkitfullscreenchange',
-    'webkitfullscreenerror'
-  ],
-  // Old WebKit (Safari 5.1)
-  [
-    'webkitRequestFullScreen',
-    'webkitCancelFullScreen',
-    'webkitCurrentFullScreenElement',
-    'webkitCancelFullScreen',
-    'webkitfullscreenchange',
-    'webkitfullscreenerror'
+    'webkitfullscreenerror',
+    '-webkit-full-screen'
   ],
   // Mozilla
   [
@@ -47,7 +44,8 @@ const apiMap = [
     'mozFullScreenElement',
     'mozFullScreenEnabled',
     'mozfullscreenchange',
-    'mozfullscreenerror'
+    'mozfullscreenerror',
+    '-moz-full-screen'
   ],
   // Microsoft
   [
@@ -56,11 +54,12 @@ const apiMap = [
     'msFullscreenElement',
     'msFullscreenEnabled',
     'MSFullscreenChange',
-    'MSFullscreenError'
+    'MSFullscreenError',
+    '-ms-fullscreen'
   ]
 ];
 
-let specApi = apiMap[0];
+const specApi = apiMap[0];
 let browserApi;
 
 // determine the supported set of functions
@@ -74,9 +73,11 @@ for (let i = 0; i < apiMap.length; i++) {
 
 // map the browser API names to the spec API names
 if (browserApi) {
-  for (let i=0; i<browserApi.length; i++) {
+  for (let i = 0; i < browserApi.length; i++) {
     FullscreenApi[specApi[i]] = browserApi[i];
   }
+
+  FullscreenApi.prefixed = browserApi[0] !== specApi[0];
 }
 
 export default FullscreenApi;
