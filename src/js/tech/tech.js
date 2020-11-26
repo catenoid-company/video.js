@@ -1033,9 +1033,20 @@ Tech.withSourceHandlers = function(_Tech) {
       handlers = _Tech.sourceHandlers = [];
     }
 
-    if (index === undefined) {
-      // add to the end of the list
-      index = handlers.length;
+    // if (index === undefined) {
+    //   // add to the end of the list
+    //   index = handlers.length;
+    // }
+
+    handler.targetIndex = index;
+    index = handlers.length;
+    if (index !== undefined) {
+      for (let i = 0; i < handlers.length; i++) {
+        if (handlers[i].targetIndex === undefined || handlers[i].targetIndex > handler.targetIndex) {
+          index = i;
+          break;
+        }
+      }
     }
 
     handlers.splice(index, 0, handler);
